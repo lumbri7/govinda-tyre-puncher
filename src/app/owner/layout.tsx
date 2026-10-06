@@ -1,0 +1,44 @@
+import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
+
+import { AppShell } from '@/components/app-shell'
+import { IconBill, IconChart, IconHome, IconRupee, IconStaff } from '@/components/icons'
+import { NotificationBell } from '@/components/notification-bell'
+import { requireOwner } from '@/lib/auth'
+import { createClient } from '@/lib/supabase/server'
+
+export const metadata: Metadata = { title: 'Owner' }
+
+export default async function OwnerLayout({ children }: { children: ReactNode }) {
+  const session = await requireOwner()
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .eq('is_read', false)
+
+  const nav = [
+    { href: '/owner', label: 'Dashboard', icon: <IconHome />, exact: true },
+    { href: '/owner/bills', label: 'Bills', icon: <IconBill /> },
+    { href: '/owner/reports', label: 'Reports', icon: <IconChart /> },
+    { href: '/owner/employees', label: 'Staff', icon: <IconStaff /> },
+    { href: '/owner/salary', label: 'Salary', icon: <IconRupee /> },
+  ]
+
+  return (
+    <AppShell
+      shopName={session.businessName}
+      title="Shop owner"
+      nav={nav}
+      headerAction={
+        <NotificationBell
+          userId={session.userId}
+          unread={count ?? 0}
+          href="/owner/alerts"
+        />
+      }
+    >
+      {children}
+    </AppShell>
+  )
+}

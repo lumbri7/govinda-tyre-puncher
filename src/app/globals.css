@@ -1,26 +1,134 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Govinda Tyre Puncture.
+ *
+ * The shop uses these screens in bright daylight, one handed, on a phone, so
+ * the interface is light only, the type is large and the tap targets are big
+ * (every button is at least 48px tall).
+ */
+
+@theme {
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #d9e6ff;
+  --color-brand-200: #bcd3ff;
+  --color-brand-300: #8eb6ff;
+  --color-brand-400: #598eff;
+  --color-brand-500: #3366ff;
+  --color-brand-600: #1d45f5;
+  --color-brand-700: #1732e1;
+  --color-brand-800: #1929b6;
+  --color-brand-900: #1a2b8f;
+  --color-brand-950: #151c57;
+
+  --color-ink-50: #f6f7f9;
+  --color-ink-100: #eceef2;
+  --color-ink-200: #d5dae3;
+  --color-ink-300: #b1bacb;
+  --color-ink-400: #8695ae;
+  --color-ink-500: #677695;
+  --color-ink-600: #525e79;
+  --color-ink-700: #434c61;
+  --color-ink-800: #3a4151;
+  --color-ink-900: #343947;
+  --color-ink-950: #22252e;
+
+  --color-cash-50: #fffbeb;
+  --color-cash-100: #fef3c7;
+  --color-cash-500: #f59e0b;
+  --color-cash-600: #d97706;
+  --color-cash-700: #b45309;
+
+  --color-good-50: #ecfdf5;
+  --color-good-100: #d1fae5;
+  --color-good-600: #059669;
+  --color-good-700: #047857;
+
+  --color-bad-50: #fef2f2;
+  --color-bad-100: #fee2e2;
+  --color-bad-600: #dc2626;
+  --color-bad-700: #b91c1c;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ink-50);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+  }
+
+  /* Keyboard users get a visible ring; touch users do not see it. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+  }
+
+  /* Stop iOS zooming in when a numeric field is focused. */
+  input,
+  select,
+  textarea {
+    font-size: max(1rem, var(--text-base));
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Bottom navigation sits above the home indicator on iOS. */
+  .safe-bottom {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .safe-top {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
+  /* Price inputs use tabular figures so digits line up while typing. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/*
+ * Printing.
+ *
+ * `no-print` is a safety net for the screen pages. The real print output comes
+ * from /bill/[id]/print, which renders the document on its own, so the rules
+ * below only have to strip the on-screen furniture and keep table headers
+ * repeated across page breaks.
+ */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff;
+  }
+
+  .bill-document {
+    max-width: none;
+    padding: 0;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  .bill-document thead,
+  .bill-document tfoot {
+    break-inside: avoid;
+  }
 }

@@ -1,0 +1,1 @@
+export type VehicleType = 'bike' | 'car' | 'small_truck' | 'large_truck' | 'tractor' | 'other'
