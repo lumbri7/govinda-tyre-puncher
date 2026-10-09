@@ -34,7 +34,7 @@ test('the owner records a salary payment and the employee accepts it', async ({ 
 
   await expect(page.getByRole('heading', { name: 'Salary' })).toBeVisible()
   await expect(page.getByText(employee.fullName)).toBeVisible()
-  await expect(page.getByText('₹12,000.00').first()).toBeVisible()
+  await expect(page.getByText('₹12,000').first()).toBeVisible()
 
   await salaryRow(page, employee.fullName).getByRole('button', { name: 'Record payment' }).click()
   await page.getByLabel('Amount').fill('5000')
@@ -55,7 +55,7 @@ test('the owner records a salary payment and the employee accepts it', async ({ 
   await page.goto('/employee/salary')
 
   await expect(page.getByText('Waiting for your acceptance')).toBeVisible()
-  await expect(page.getByText('₹5,000.00').first()).toBeVisible()
+  await expect(page.getByText('₹5,000').first()).toBeVisible()
   await page.getByRole('button', { name: 'Accept' }).click()
 
   await expect(page.getByText('Accepted').first()).toBeVisible()
@@ -85,7 +85,7 @@ test('the ledger keeps both the partial and the final payment', async ({ page })
   await page.goto('/employee/salary')
 
   await expect(page.getByText('Test advance')).toBeVisible()
-  await expect(page.getByText('₹7,000.00').first()).toBeVisible() // 12000 - 5000 paid
+  await expect(page.getByText('₹7,000').first()).toBeVisible() // 12000 - 5000 paid
 
   await signInThroughUi(page, owner)
   await page.goto('/owner/salary')

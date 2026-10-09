@@ -57,6 +57,7 @@ export async function submitBill(
     p_customer_phone: parsed.data.customerPhone,
     p_vehicle_description:
       parsed.data.vehicleType === 'other' ? parsed.data.vehicleDescription : null,
+    p_idempotency_key: String(formData.get('idempotencyKey') ?? '') || null,
   })
 
   if (error || !data) {

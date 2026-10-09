@@ -636,6 +636,95 @@ select test.expect_sql('switching the employee back on brings the login back',
 reset role;
 
 -- ---------------------------------------------------------------------------
+-- Bill voiding and idempotent writes (migration 00900)
+-- ---------------------------------------------------------------------------
+
+set role authenticated;
+select auth.set_claims('22222222-2222-2222-2222-222222222222', 'authenticated');
+
+-- The printed "Serviced by" name is snapshotted on the bill, so an employee's
+-- own PDF has it without needing to read another profile.
+select test.expect_sql('an employee can read the serviced-by name on their own bill',
+  format($fmt$select serviced_by from public.bills where id = %L$fmt$, :'ravi_bill'), 'Ravi');
+
+select test.raises('an employee cannot void a bill',
+  format($fmt$select public.void_bill(%L, 'not mine to void')$fmt$, :'ravi_bill'));
+reset role;
+
+set role anon;
+select test.raises('a logged out visitor cannot void a bill',
+  format($fmt$select public.void_bill(%L, 'nope')$fmt$, :'ravi_bill'));
+reset role;
+
+-- Replaying a bill with the same key must answer with the bill that already
+-- exists, not create a second one. The owner types nothing here; the form's
+-- submit button does, so it stays invisible in this test.
+set role authenticated;
+select auth.set_claims('11111111-1111-1111-1111-111111111111', 'authenticated');
+
+select test.expect_sql('replaying a bill with the same key returns the same bill',
+  format($fmt$
+    select
+      (public.create_bill('Replay', 'bike', 'RJ14ABCD',
+        '[{"item_type":"service","name":"Air Check","quantity":"1","unit_price":"0"}]'::jsonb,
+        null, null, 'e2e-replay-bill')).id
+      =
+      (public.create_bill('Replay', 'bike', 'RJ14ABCD',
+        '[{"item_type":"service","name":"Air Check","quantity":"1","unit_price":"0"}]'::jsonb,
+        null, null, 'e2e-replay-bill')).id$fmt$),
+  'true');
+
+select test.expect_sql('a replayed bill is written once, not twice',
+  $$select count(*) from public.bills where idempotency_key = 'e2e-replay-bill'$$, '1');
+
+select test.expect_sql('the employee who served the bill is remembered on it',
+  $$select serviced_by from public.bills where idempotency_key = 'e2e-replay-bill'$$, 'Govinda');
+
+-- Replaying a salary payment with the same key must not pay twice. The half
+-- activated fixture (4444) has 4000 remaining, so 500 is safely payable.
+select test.expect_sql('replaying a salary payment with the same key returns the same payment',
+  format($fmt$
+    select
+      (public.record_salary_payment(%L, 500, current_date, null, 'e2e-replay-payment')).id
+      =
+      (public.record_salary_payment(%L, 500, current_date, null, 'e2e-replay-payment')).id$fmt$,
+    :'half_id', :'half_id'),
+  'true');
+
+select test.expect_sql('a replayed salary payment is written once, not twice',
+  $$select count(*) from public.salary_payments where idempotency_key = 'e2e-replay-payment'$$, '1');
+
+-- Voids stay in the books but stop counting in every total.
+select test.raises('a void needs a reason before it is accepted',
+  format($fmt$select public.void_bill(%L, null)$fmt$, :'ravi_bill'));
+
+select test.expect_sql('voiding returns the bill marked at this moment',
+  format($fmt$select voided_at is not null from public.void_bill(%L, 'Wrong amount typed')$fmt$, :'ravi_bill'), 'true');
+
+select test.expect_sql('the void is attributed to the owner with the reason kept',
+  format($fmt$select (voided_by = '11111111-1111-1111-1111-111111111111' and void_reason = 'Wrong amount typed')::text
+    from public.bills where id = %L$fmt$, :'ravi_bill'),
+  'true');
+
+select test.raises('a bill cannot be voided twice',
+  format($fmt$select public.void_bill(%L, 'so sorry, wrong wrong')$fmt$, :'ravi_bill'));
+
+select test.expect_sql('a voided bill stays in the table for the books',
+  format($fmt$select count(*) from public.bills where id = %L$fmt$, :'ravi_bill'), '1');
+
+select test.expect_sql('the sales report leaves a voided bill out',
+  format($fmt$
+    select
+      (select total_sales from public.sales_summary(now() - interval '1 day', now() + interval '1 day', null) limit 1)
+      = (select coalesce(sum(grand_total), 0) from public.bills b
+          where b.voided_at is null
+            and b.created_at >= now() - interval '1 day'
+            and b.created_at < now() + interval '1 day')$fmt$),
+  'true');
+
+reset role;
+
+-- ---------------------------------------------------------------------------
 -- Report
 -- ---------------------------------------------------------------------------
 

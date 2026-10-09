@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand blue from the project's own icon (public/icons). -->
+    <color name="ic_launcher_background">#1D45F5</color>
+</resources>

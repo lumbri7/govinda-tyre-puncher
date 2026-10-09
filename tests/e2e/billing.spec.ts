@@ -36,7 +36,7 @@ test('an employee creates a bill through the whole flow', async ({ page }) => {
   await advance(page)
 
   // 3. service charge
-  await page.getByRole('button', { name: '₹100.00', exact: true }).click()
+  await page.getByRole('button', { name: '₹100', exact: true }).click()
   await advance(page)
 
   // 4. services
@@ -61,7 +61,7 @@ test('an employee creates a bill through the whole flow', async ({ page }) => {
   await expect(page.getByText('Bill saved.')).toBeVisible()
   await expect(page.getByText(/^GTP-\d{8}-\d{3}$/)).toBeVisible()
   await expect(page.getByText('+919876543210')).toBeVisible()
-  await expect(page.getByText('₹700.00').first()).toBeVisible() // 100 charge + 150 service + 450 part
+  await expect(page.getByText('₹700').first()).toBeVisible() // 100 charge + 150 service + 450 part
 })
 
 test('a bill cannot be saved without an item', async ({ page }) => {
@@ -226,7 +226,7 @@ test('the print route shows the bill with no app navigation', async ({ page }) =
 
   await expect(page.getByText('Service Bill')).toBeVisible()
   await expect(page.getByText('Print Check')).toBeVisible()
-  await expect(page.getByText('₹150.00').first()).toBeVisible()
+  await expect(page.getByText('₹150').first()).toBeVisible()
 
   // Nothing from the app shell may reach the paper.
   await expect(page.locator('nav')).toHaveCount(0)

@@ -141,10 +141,10 @@ test('an employee the owner adds can sign in with that number and password', asy
   // about it or it stays in the shop's staff list.
   await recordEmployeeCreatedInApp('Deepak Test')
 
-  await page
-    .getByRole('button', { name: 'Sign out' })
-    .click()
-    .catch(() => undefined)
+  // Sign out is only on the settings screen, so swap accounts the way a test
+  // does elsewhere: drop the browser cookies and land on the sign in form for
+  // the employee who was just added.
+  await page.context().clearCookies()
   await page.goto('/login')
   await page.getByRole('tab', { name: 'Employee' }).click()
   await page.getByLabel('Mobile number').fill(number)
@@ -178,6 +178,9 @@ test('an employee cannot take a colleague’s mobile number', async ({ page }) =
 
   await expect(formAlert(page)).toContainText(/already/i)
 
+  // The owner session must not shadow the login screen, and the employee's own
+  // login is what has to still work after the database refused the edit.
+  await page.context().clearCookies()
   await page.goto('/login')
   await page.getByRole('tab', { name: 'Employee' }).click()
   await page.getByLabel('Mobile number').fill((employee.phone ?? '').replace('+91', ''))

@@ -30,11 +30,6 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
     .eq('bill_id', bill.id)
     .order('sort_order')
 
-  const { data: creator } =
-    session.role === 'owner'
-      ? await supabase.from('profiles').select('full_name').eq('id', bill.created_by).maybeSingle()
-      : { data: null }
-
   return (
     <main className="min-h-dvh bg-white">
       <AutoPrint />
@@ -42,7 +37,6 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
         bill={{ ...bill, items: items ?? [] } as BillWithItems}
         shopName={session.businessName}
         timezone={session.timezone}
-        createdByName={creator?.full_name}
       />
     </main>
   )

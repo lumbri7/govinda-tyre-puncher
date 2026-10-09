@@ -99,7 +99,7 @@ export default async function OwnerSalaryPage({
         <LoadError title="Could not load the salary ledger" message={salaryError.message} />
       ) : null}
 
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card>
           <p className="text-xs font-semibold tracking-wide text-ink-500 uppercase">Salaries</p>
           <p className="tabular text-lg font-bold text-ink-950">{formatRupees(totalSalary)}</p>
@@ -152,20 +152,20 @@ export default async function OwnerSalaryPage({
                     />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 text-sm">
-                    <div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+                    <div className="min-w-fit">
                       <p className="text-xs text-ink-500">Paid</p>
                       <p className="tabular font-semibold text-good-700">
                         {formatRupees(numericToPaise(row.paid))}
                       </p>
                     </div>
-                    <div>
+                    <div className="min-w-fit">
                       <p className="text-xs text-ink-500">Remaining</p>
                       <p className="tabular font-semibold text-cash-700">
                         {formatRupees(numericToPaise(row.remaining))}
                       </p>
                     </div>
-                    <div>
+                    <div className="min-w-fit">
                       <p className="text-xs text-ink-500">Waiting</p>
                       <p className="tabular font-semibold text-ink-900">
                         {row.pending_acknowledgements}

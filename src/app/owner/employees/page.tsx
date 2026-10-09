@@ -65,7 +65,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
       {adding ? <AddEmployeeForm /> : null}
 
       {error ? (
-        <LoadError title="Could not load the staff list" message={error.message} />
+        <LoadError title="Could not load the staff list" retry />
       ) : list.length === 0 ? (
         <EmptyState
           title="No employees yet"

@@ -20,6 +20,7 @@ for the phone the counter actually sits on.
 - [Creating the first owner](#creating-the-first-owner)
 - [Demo data](#demo-data)
 - [Daily commands](#daily-commands)
+- [Android development](#android-development)
 - [Tests](#tests)
 - [How the data is protected](#how-the-data-is-protected)
 - [Deploying](#deploying)
@@ -145,6 +146,78 @@ forced into the tables. `-- --reset` re-creates the demo employees.
 | `npm run owner:create` | Create the first owner and shop                 |
 | `npm run demo:seed` | Fill a shop with demo data                           |
 
+## Android development
+
+The counter runs the app on an Android phone, so the repository carries a
+Capacitor Android project alongside the Next.js one. It is **Android only**:
+there is no iOS target, and there is no static export. The WebView loads the
+hosted Next.js server, so the Android build never contains a database URL, a
+service role key or any other server secret.
+
+| Piece         | Value                                             |
+| ------------- | ------------------------------------------------- |
+| App id        | `com.govindatyrepuncture.app`                     |
+| App name      | Govinda Tyre Puncture                             |
+| Capacitor     | `@capacitor/core`, `cli`, `android` 8.5.2, plus `@capacitor/share` 8.0.3 |
+| Project       | `android/` (AGP 8.13.0, Gradle 8.14.3, minSdk 24, compileSdk 36) |
+| Permissions   | `INTERNET` only, no location, camera, contacts or storage |
+
+### One time setup
+
+1. Android SDK with `platforms;android-36` (`sdkmanager "platforms;android-36"`).
+2. A JDK that Gradle 8.14.3 accepts. It stops on the JDK 25 shipped by recent
+   Linux distributions with *"Unsupported class file major version 69"*, so
+   install a JDK 21 and point Gradle at it **outside this repository** — the
+   path must never enter the project:
+
+   ```properties
+   # ~/.gradle/gradle.properties   (machine local, never committed)
+   org.gradle.java.home=/path/to/jdk-21
+   ```
+
+3. The phone with USB debugging on, showing as `device` in `adb devices`.
+4. `npm run dev` running on port 3000.
+
+### Everyday commands
+
+| Command                                                     | What it does                                        |
+| ----------------------------------------------------------- | --------------------------------------------------- |
+| `npx cap sync android`                                      | Copies web assets and registers native plugins. Run after installing a Capacitor plugin or editing `capacitor.config.ts`. |
+| `npx cap run android --list`                                | Lists connected phones and emulators.                |
+| `npx cap run android --live-reload --host 127.0.0.1 --port 3000 --forwardPorts 3000:3000` | Builds, installs and launches the app pointed at the dev server, with the port reversed over USB. Ctrl+C stops it. |
+| `npx cap open android`                                      | Opens the project in Android Studio.                 |
+| `cd android && ./gradlew assembleDebug`                     | Builds `app-debug.apk` without a phone attached.     |
+
+Three things the live-reload run does for you:
+
+- the development URL is never written into `capacitor.config.ts`. The CLI
+  keeps it for that run only and restores the config when it exits, so a
+  development host cannot leak into a build;
+- while it runs, Capacitor temporarily allows cleartext http (Android blocks
+  it by default as of API 28) and turns on WebView remote debugging so
+  `chrome://inspect` works, then restores both on exit. Release builds get
+  neither;
+- `cap run` fails fast when no phone is attached — check `adb devices` first.
+
+### The webDir shell
+
+`cap sync` requires `webDir` to contain an `index.html`. This app has no
+static bundle, so `webDir` points at `web-fallback/`: one shell page that
+says the server has not been configured. It holds no development URL and no
+secrets, so a build that somehow loads it explains itself instead of showing
+a blank WebView.
+
+### Shipping to the shop's phone
+
+- Android keeps cleartext http, mixed content and WebView debugging off, and
+  asks only for `INTERNET`.
+- Release signing material (`*.jks`, `*.keystore`, `keystore.properties`) is
+  ignored by `android/.gitignore`. Keep it that way: an APK is easy to
+  rebuild, a leaked keystore is not.
+- The phone signs into the same Supabase project as the web app, so row level
+  security still decides what each account can see, and the mobile viewport
+  the tests use is the one the app was shaped for.
+
 ## Tests
 
 ### Database security tests
@@ -161,7 +234,7 @@ The runner drops a scratch database, applies
 `supabase/tests/harness/00_local_supabase_stub.sql` (a stand in for the Supabase
 `auth` schema) and every migration, then runs `tests/rls/security.sql` as four
 different database roles: the owner, two employees, and a logged out visitor.
-Current state: **94 checks, 0 failures**, covering
+Current state: **114 checks, 0 failures**, covering
 
 - an employee cannot read, change or delete a colleague's bills, salary,
   employees or notifications;
@@ -234,6 +307,9 @@ src/app/owner/         owner screens
 src/components/        shared UI, billing wizard
 src/lib/               supabase clients, auth guards, validation, money
 src/proxy.ts           session refresh and route protection
+capacitor.config.ts    Android app id, name and webDir; no server URL
+android/               generated Capacitor Android project
+web-fallback/          the index.html cap sync copies into the APK
 ```
 
 ## How employees sign in

@@ -146,7 +146,17 @@ export function BillDocument({
 
       <footer className="mt-6 border-t border-ink-200 pt-3 text-center text-xs text-ink-500">
         <p>Thank you, drive safely.</p>
-        {createdByName ? <p className="mt-1">Serviced by {createdByName}</p> : null}
+        {/* The employee's name at the moment of saving, snapshotted by
+            create_bill so every copy stays accurate after a rename and an
+            employee's own PDF is not missing their name. */}
+        {bill.serviced_by ?? createdByName ? (
+          <p className="mt-1">Serviced by {bill.serviced_by ?? createdByName}</p>
+        ) : null}
+        {bill.voided_at ? (
+          <p className="mt-2 border-t border-ink-100 pt-2 font-semibold text-bad-700">
+            This bill was voided and is not part of the shop&apos;s accounts.
+          </p>
+        ) : null}
       </footer>
     </article>
   )

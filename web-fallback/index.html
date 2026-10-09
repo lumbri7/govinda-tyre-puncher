@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1d45f5" />
+    <title>Govinda Tyre Puncture</title>
+    <!--
+      Entry point for the Capacitor Android shell only.
+
+      This application is server rendered (Server Actions + Supabase SSR), so
+      the WebView is normally pointed at the Next.js server. This page is what
+      the shell shows when no server has been configured yet: a blank WebView
+      would be indistinguishable from a crash.
+
+      No development host and no server URL belongs in this file: the
+      development server address is supplied per run by the Capacitor CLI
+      (see README.md, "Android development"), so nothing here can become a
+      configured endpoint for a release build.
+    -->
+    <style>
+      :root {
+        color-scheme: light;
+        --brand: #1d45f5;
+        --ink-950: #22252e;
+        --ink-600: #525e79;
+        --ink-100: #eceef2;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #ffffff;
+        color: var(--ink-950);
+        font-family:
+          system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        -webkit-text-size-adjust: 100%;
+      }
+      body {
+        display: flex;
+        min-height: 100svh;
+        align-items: center;
+        justify-content: center;
+        padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+      }
+      main {
+        width: 100%;
+        max-width: 26rem;
+        text-align: center;
+      }
+      .mark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 1rem;
+        background: var(--brand);
+        color: #ffffff;
+        font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+      }
+      h1 {
+        margin: 1rem 0 0.35rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      p {
+        margin: 0;
+        color: var(--ink-600);
+        font-size: 0.95rem;
+        line-height: 1.55;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--ink-100);
+        margin: 1.5rem 0;
+      }
+      code {
+        display: block;
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        background: var(--ink-100);
+        color: var(--ink-950);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.75rem;
+        line-height: 1.7;
+        text-align: left;
+        overflow-x: auto;
+        white-space: pre;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">GT</div>
+      <h1>Govinda Tyre Puncture</h1>
+      <p>
+        The shop server has not been configured for this build yet. The app itself
+        runs on the Govinda Tyre Puncture server; this shell only opens it.
+      </p>
+      <hr />
+      <p>Start the Govinda Tyre Puncture server, then reopen the app.</p>
+    </main>
+  </body>
+</html>

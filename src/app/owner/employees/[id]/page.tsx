@@ -1,10 +1,9 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-import { setEmployeeActive } from '@/app/owner/actions'
 import { EditEmployeeForm } from '@/app/owner/employees/[id]/edit-employee-form'
+import { EmployeeActiveForm } from '@/app/owner/employees/[id]/employee-active-form'
 import { ResetPasswordForm } from '@/app/owner/employees/[id]/reset-password-form'
-import { SubmitButton } from '@/components/submit-button'
 import { Badge, Card, EmptyState, PageTitle, SectionTitle } from '@/components/ui'
 import { formatDate } from '@/lib/dates'
 import { formatRupees, numericToPaise } from '@/lib/money'
@@ -122,21 +121,11 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
           <ResetPasswordForm employeeId={employee.id} />
 
           <div className="space-y-2 border-t border-ink-100 pt-4">
-            <form action={setEmployeeActive}>
-              <input type="hidden" name="employeeId" value={employee.id} />
-              <input type="hidden" name="isActive" value={employee.is_active ? 'false' : 'true'} />
-              <SubmitButton
-                variant={employee.is_active ? 'danger' : 'secondary'}
-                pendingLabel="Saving..."
-              >
-                {employee.is_active ? 'Disable this employee' : 'Enable this employee'}
-              </SubmitButton>
-            </form>
-
-            <p className="text-xs text-ink-500">
-              Disabling signs the employee out on every device and blocks their bills and salary
-              immediately. Their past bills and salary records stay exactly as they are.
-            </p>
+            <EmployeeActiveForm
+              employeeId={employee.id}
+              employeeName={profile?.full_name ?? 'This employee'}
+              isActive={employee.is_active}
+            />
           </div>
         </div>
       </section>

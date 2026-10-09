@@ -1,10 +1,12 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 
 import { type ActionState, actionError, humanizeDatabaseError } from '@/lib/action-state'
 import { requireSession } from '@/lib/auth'
 import { fieldErrors, updatePasswordSchema } from '@/lib/validation'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
 /** Actions both roles need. Marking a notification read is RLS protected: a
@@ -35,7 +37,7 @@ export async function changeOwnPassword(
   _previous: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireSession()
+  const session = await requireSession()
 
   const parsed = updatePasswordSchema.safeParse({
     password: String(formData.get('password') ?? ''),
@@ -47,5 +49,18 @@ export async function changeOwnPassword(
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
   if (error) return actionError(humanizeDatabaseError(error.message))
 
-  return { status: 'success', message: 'Password changed.' }
+  // A changed password does not end the sessions that were handed out under the
+  // old one: the access token in the cookie stays valid until it expires, and a
+  // refresh token copied earlier still works. This is the same treatment the
+  // owner's reset applies (see migration 00700): stamp the moment sessions
+  // became invalid, revoke the refresh tokens at Auth, and drop this one.
+  const admin = createAdminClient()
+  await admin
+    .from('profiles')
+    .update({ session_invalid_before: new Date().toISOString() })
+    .eq('id', session.userId)
+  await admin.auth.admin.signOut(session.userId, 'global')
+  await supabase.auth.signOut()
+
+  redirect('/login?reason=session-ended')
 }

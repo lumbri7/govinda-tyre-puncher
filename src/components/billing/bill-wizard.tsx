@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useMemo, useState } from 'react'
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react'
 
 import { StepCharge } from '@/components/billing/step-charge'
 import { StepDetails } from '@/components/billing/step-details'
@@ -26,6 +26,58 @@ import { toRpcItems } from '@/lib/validation'
 
 const LAST_STEP = STEPS.length - 1
 
+/** Remembered on the device, so a lost connection never loses the bill itself. */
+const DRAFT_STORAGE_KEY = 'govinda.bill-draft.v1'
+
+function isDraftEmpty(draft: BillDraft): boolean {
+  return (
+    !draft.vehicleType &&
+    draft.vehicleNumber.length === 0 &&
+    draft.vehicleDescription.length === 0 &&
+    draft.customerName.length === 0 &&
+    draft.customerPhone.length === 0 &&
+    draft.serviceChargePaise === 0 &&
+    draft.items.length === 0
+  )
+}
+
+function restoreDraft(): BillDraft {
+  // The initializer also runs on the server during SSG of this client
+  // component, where sessionStorage does not exist.
+  if (typeof window === 'undefined') return emptyDraft()
+  try {
+    const raw = window.sessionStorage.getItem(DRAFT_STORAGE_KEY)
+    if (!raw) return emptyDraft()
+    const saved = JSON.parse(raw) as Partial<BillDraft>
+    if (!saved || typeof saved !== 'object') return emptyDraft()
+    const items = Array.isArray(saved.items)
+      ? saved.items.filter(
+          (item) =>
+            typeof item?.key === 'string' &&
+            (item.itemType === 'service' || item.itemType === 'part' || item.itemType === 'custom') &&
+            typeof item.name === 'string' &&
+            typeof item.quantityCenti === 'number' &&
+            typeof item.unitPricePaise === 'number',
+        )
+      : []
+    return {
+      vehicleType:
+        saved.vehicleType &&
+        ['bike', 'car', 'small_truck', 'large_truck', 'tractor', 'other'].includes(saved.vehicleType)
+          ? saved.vehicleType
+          : null,
+      vehicleNumber: typeof saved.vehicleNumber === 'string' ? saved.vehicleNumber : '',
+      vehicleDescription: typeof saved.vehicleDescription === 'string' ? saved.vehicleDescription : '',
+      customerName: typeof saved.customerName === 'string' ? saved.customerName : '',
+      customerPhone: typeof saved.customerPhone === 'string' ? saved.customerPhone : '',
+      serviceChargePaise: typeof saved.serviceChargePaise === 'number' ? saved.serviceChargePaise : 0,
+      items,
+    }
+  } catch {
+    return emptyDraft()
+  }
+}
+
 export function BillWizard({
   submitAction,
   pendingLabel = 'Saving bill...',
@@ -33,14 +85,32 @@ export function BillWizard({
   submitAction: (state: ActionState, formData: FormData) => Promise<ActionState>
   pendingLabel?: string
 }) {
-  const [state, formAction] = useActionState(submitAction, idleState)
+  const [state, formAction, isPending] = useActionState(submitAction, idleState)
   const [stepIndex, setStepIndex] = useState(0)
-  const [draft, setDraft] = useState<BillDraft>(emptyDraft)
+  const [draft, setDraft] = useState<BillDraft>(restoreDraft)
   const [showErrors, setShowErrors] = useState(false)
+  // One key per bill, sent twice only if the first attempt never made it: the
+  // database turns a replay into "here is the bill you already saved" instead
+  // of a second bill. Written imperatively at submit time, so no random value
+  // ever has to survive the server render.
+  const idempotencyKeyRef = useRef<string | null>(null)
+  const idempotencyKeyFieldRef = useRef<HTMLInputElement>(null)
 
   const step = STEPS[stepIndex]
   const totals = useMemo(() => totalsOf(draft), [draft])
   const itemCount = useMemo(() => toBillItems(draft).length, [draft])
+
+  // Remember the draft on this device as it is typed, and let a failed save
+  // retry with everything still in place. A saved bill is its own record, so
+  // nothing is written once we are gone.
+  useEffect(() => {
+    try {
+      if (isDraftEmpty(draft)) window.sessionStorage.removeItem(DRAFT_STORAGE_KEY)
+      else window.sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+    } catch {
+      // A full or blocked storage must not break the bill.
+    }
+  }, [draft])
 
   const errors = showErrors ? localErrors(step.key, draft) : {}
   // Shown as soon as the review is reached: an empty bill can never be saved.
@@ -78,10 +148,26 @@ export function BillWizard({
       action={formAction}
       onSubmit={(event) => {
         // Enter on a keyboard should walk through the steps, not save early.
-        if (step.key !== 'review') event.preventDefault()
+        if (step.key !== 'review') {
+          event.preventDefault()
+          return
+        }
+        // The review screen answers to a single tap: a second tap while the
+        // first save is still in flight would post the same bill again. The
+        // database's idempotency key is the real guarantee; this just keeps a
+        // double tap from even trying.
+        if (isPending) {
+          event.preventDefault()
+          return
+        }
+        if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID()
+        if (idempotencyKeyFieldRef.current) {
+          idempotencyKeyFieldRef.current.value = idempotencyKeyRef.current
+        }
       }}
       className="space-y-4"
     >
+      <input ref={idempotencyKeyFieldRef} type="hidden" name="idempotencyKey" />
       <input type="hidden" name="customerName" value={draft.customerName} />
       <input type="hidden" name="customerPhone" value={draft.customerPhone} />
       <input type="hidden" name="vehicleType" value={draft.vehicleType ?? ''} />

@@ -235,8 +235,8 @@ test('a new employee only sees their own salary, never a colleague’s', async (
   await signInThroughUi(page, first)
   await page.goto('/employee/salary')
 
-  await expect(page.getByText('₹12,000.00').first()).toBeVisible()
-  await expect(page.getByText('₹11,000.00')).toBeHidden()
+  await expect(page.getByText('₹12,000').first()).toBeVisible()
+  await expect(page.getByText('₹11,000')).toBeHidden()
   await expect(page.getByRole('link', { name: /Suresh Isolation/ })).toBeHidden()
 })
 

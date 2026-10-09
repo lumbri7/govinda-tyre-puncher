@@ -210,6 +210,28 @@ export async function createEmployee(
 
     const existing = await existingFixtureEmployee(ownerProfile!.business_id, options.fullName)
     if (existing) {
+      // A reused account keeps the employee's Auth identity (the internal
+      // email), but the caller signs in with the fresh phone number it passed
+      // in below. The app resolves number -> user_id by the phone on the
+      // profile, so the stored phone has to follow the number the test will
+      // type, or every login after the first run fails. A previous run may
+      // have also disabled the employee or reset their password, so the reuse
+      // restores the fixtures contract: active, and signed in with the
+      // password this run uses.
+      const { error: phoneError } = await adminClient()
+        .from('profiles')
+        .update({ phone: options.phone, is_active: true })
+        .eq('id', existing.userId)
+      if (phoneError)
+        throw new Error(`Could not reuse the fixture profile: ${phoneError.message}`)
+
+      const { error: passwordError } = await adminClient().auth.admin.updateUserById(
+        existing.userId,
+        { password },
+      )
+      if (passwordError)
+        throw new Error(`Could not reuse the fixture password: ${passwordError.message}`)
+
       return {
         role: 'employee',
         phone: options.phone,
@@ -348,6 +370,13 @@ export async function signInThroughUi(
   // /login, so a test that switches accounts without signing out would never
   // see the sign in form at all.
   await page.context().clearCookies()
+  // Leave the App Router's document first: a hard `page.goto` to a route the
+  // router has already committed client-side is cancelled by Chromium as
+  // net::ERR_ABORTED ("navigation to the same route"). A pristine document at
+  // about:blank has no router state to race with.
+  if (!page.url().startsWith('about:') && page.url() !== '') {
+    await page.goto('about:blank')
+  }
   await page.goto('/login')
 
   if (account.email) {

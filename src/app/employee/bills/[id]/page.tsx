@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 
 import { BillActions } from '@/components/bill-actions'
 import { BillDocument, type BillWithItems } from '@/components/bill-document'
+import { ClearBillDraft } from '@/components/clear-bill-draft'
 import { billShareSummary, whatsappBillLink } from '@/lib/bill-share'
 import { LoadError } from '@/components/ui'
 import { requireEmployee } from '@/lib/auth'
@@ -25,7 +26,7 @@ export default async function EmployeeBillPage({
   const { data: bill, error } = await supabase.from('bills').select('*').eq('id', id).maybeSingle()
 
   if (error) {
-    return <LoadError title="Could not load this bill" message={error.message} />
+    return <LoadError title="Could not load this bill" retry />
   }
 
   // RLS already hides other people's bills: a missing bill is a 404, not a
@@ -61,9 +62,12 @@ export default async function EmployeeBillPage({
   return (
     <div className="space-y-4">
       {query.saved === '1' ? (
-        <p className="no-print rounded-xl bg-good-50 px-3 py-2.5 text-sm font-semibold text-good-700">
-          Bill saved.
-        </p>
+        <>
+          <ClearBillDraft />
+          <p className="no-print rounded-xl bg-good-50 px-3 py-2.5 text-sm font-semibold text-good-700">
+            Bill saved.
+          </p>
+        </>
       ) : null}
 
       <div className="no-print flex items-center justify-between gap-3">
@@ -77,6 +81,12 @@ export default async function EmployeeBillPage({
         summary={billShareSummary(shareDetails)}
         whatsappUrl={whatsappBillLink(shareDetails)}
       />
+
+      {bill.voided_at ? (
+        <p className="rounded-xl border border-bad-200 bg-bad-50 px-3 py-2.5 text-sm font-semibold text-bad-700">
+          This bill was voided by the owner and is not part of the shop&apos;s accounts.
+        </p>
+      ) : null}
 
       <div className="rounded-2xl bg-white shadow-sm ring-1 ring-ink-200/70">
         <BillDocument

@@ -259,6 +259,7 @@ export async function recordSalaryPayment(
     p_amount: toSalaryNumber(parsed.data.amount),
     p_payment_date: parsed.data.paymentDate,
     p_note: parsed.data.note || null,
+    p_idempotency_key: text(formData, 'idempotencyKey') || null,
   })
 
   if (error) return actionError(humanizeDatabaseError(error.message))
@@ -288,6 +289,43 @@ export async function cancelSalaryPayment(
   revalidatePath('/owner/salary')
 
   return actionSuccess('Payment cancelled.')
+}
+
+/**
+ * Marks a bill as voided on purpose: the copy a customer already has stays what
+ * it is, but every total and every report stops counting it from this moment.
+ *
+ * Only the owner can do this, the reason is mandatory (nothing accidental), the
+ * row and its lines are never deleted, and a voided bill cannot be voided
+ * twice. See migration 00900 for the database side.
+ */
+export async function voidBill(
+  _previous: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  await requireOwner()
+
+  const billId = text(formData, 'billId')
+  const reason = text(formData, 'reason')
+  if (!billId) return actionError('This bill could not be found.')
+  if (reason.length < 3 || reason.length > 240) {
+    return actionError('Enter a short reason for voiding this bill.')
+  }
+
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('void_bill', {
+    p_bill_id: billId,
+    p_reason: reason,
+  })
+
+  if (error) return actionError(humanizeDatabaseError(error.message))
+
+  revalidatePath('/owner/bills')
+  revalidatePath(`/owner/bills/${billId}`)
+  revalidatePath('/owner/reports')
+  revalidatePath('/owner')
+
+  return actionSuccess('Bill voided. It no longer counts in sales totals, but the record stays for the books.')
 }
 
 export async function updateBusinessName(

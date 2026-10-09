@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Capacitor's generated Android project. Gradle build output and copied
+    // web assets land inside it, and linting a generated native-bridge.js
+    // only ever produces noise.
+    "android/**",
   ]),
 ]);
 

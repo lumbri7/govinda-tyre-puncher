@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 
 import { Geist, Geist_Mono } from 'next/font/google'
 
+import { OfflineGate } from '@/components/offline-gate'
 import { ServiceWorker } from '@/components/service-worker'
 
 import './globals.css'
@@ -52,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <ServiceWorker />
-        {children}
+        <OfflineGate>{children}</OfflineGate>
       </body>
     </html>
   )

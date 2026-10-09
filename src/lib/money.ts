@@ -55,8 +55,10 @@ export function numericToPaise(value: number | string | null | undefined): numbe
 export function formatRupees(paise: number, options: { sign?: boolean } = {}): string {
   const negative = paise < 0
   const abs = Math.abs(Math.trunc(paise))
+  // Whole rupees render without ".00"; paise amounts always show both decimals.
+  const minimumFractionDigits = abs % 100 === 0 ? 0 : 2
   const body = new Intl.NumberFormat('en-IN', {
-    minimumFractionDigits: 2,
+    minimumFractionDigits,
     maximumFractionDigits: 2,
   }).format(abs / 100)
 
@@ -66,8 +68,10 @@ export function formatRupees(paise: number, options: { sign?: boolean } = {}): s
 
 export function formatRupeesShort(paise: number): string {
   const rupees = Math.abs(paise) / 100
+  const minimumFractionDigits = Math.abs(Math.trunc(paise)) % 100 === 0 ? 0 : 2
   const body = new Intl.NumberFormat('en-IN', {
-    maximumFractionDigits: rupees >= 1000 ? 0 : 2,
+    minimumFractionDigits,
+    maximumFractionDigits: 2,
   }).format(rupees)
   return `${paise < 0 ? '-' : ''}₹${body}`
 }

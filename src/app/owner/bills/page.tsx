@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 
 import { DateRangeFilter } from '@/components/date-range-filter'
 import { SearchField } from '@/components/search-field'
-import { Card, EmptyState, PageTitle, ScrollTable, Stat } from '@/components/ui'
+import { Badge, Card, EmptyState, LoadError, PageTitle, ScrollTable, Stat } from '@/components/ui'
 import { defaultRange, formatDateTime, rangeToInstants } from '@/lib/dates'
 import { formatRupees, numericToPaise } from '@/lib/money'
 import { requireOwner } from '@/lib/auth'
@@ -54,7 +54,7 @@ export default async function OwnerBillsPage({
 
   const billsQuery = supabase
     .from('bills')
-    .select('id, bill_number, customer_name, vehicle_number, grand_total, created_at, created_by', {
+    .select('id, bill_number, customer_name, vehicle_number, grand_total, created_at, created_by, voided_at', {
       count: 'exact',
     })
     .gte('created_at', fromInstant)
@@ -106,12 +106,11 @@ export default async function OwnerBillsPage({
       </div>
 
       {error ? (
-        <Card className="ring-bad-200">
-          <p className="text-sm font-semibold text-bad-700">Could not load bills.</p>
-          <p className="mt-1 text-sm text-ink-600">
-            {error.message} Pull down to try again, or pick a shorter date range.
-          </p>
-        </Card>
+        <LoadError
+          title="Could not load bills."
+          message="Check the connection and try again, or pick a shorter date range."
+          retry
+        />
       ) : list.length === 0 ? (
         <EmptyState
           title={query ? 'Nothing matched that search' : 'No bills in this range'}
@@ -129,8 +128,11 @@ export default async function OwnerBillsPage({
                   className="block rounded-2xl bg-white p-4 no-underline shadow-sm ring-1 ring-ink-200/70"
                 >
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="tabular text-sm font-bold text-ink-950">
-                      {bill.bill_number}
+                    <span className="flex items-center gap-2">
+                      <span className="tabular text-sm font-bold text-ink-950">
+                        {bill.bill_number}
+                      </span>
+                      {bill.voided_at ? <Badge tone="bad">Voided</Badge> : null}
                     </span>
                     <span className="tabular shrink-0 text-base font-bold text-ink-950">
                       {formatRupees(numericToPaise(bill.grand_total))}
@@ -182,6 +184,9 @@ export default async function OwnerBillsPage({
                       </td>
                       <td className="tabular py-2.5 text-right font-semibold text-ink-950">
                         {formatRupees(numericToPaise(bill.grand_total))}
+                        {bill.voided_at ? (
+                          <span className="block text-xs font-semibold text-bad-600">Voided</span>
+                        ) : null}
                       </td>
                     </tr>
                   ))}

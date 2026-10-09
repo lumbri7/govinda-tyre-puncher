@@ -103,6 +103,16 @@ export type Database = {
           parts_total: number
           custom_items_total: number
           grand_total: number
+          /** Set when the owner voids this bill. Voided bills never count in sales figures. */
+          voided_at: string | null
+          /** Owner profile that voided the bill. */
+          voided_by: string | null
+          /** What the owner typed when voiding. */
+          void_reason: string | null
+          /** Client-supplied key that makes a retried submit return the same bill. */
+          idempotency_key: string | null
+          /** Employee name at the moment the bill was saved. */
+          serviced_by: string | null
           created_at: string
         }
         Insert: {
@@ -119,6 +129,11 @@ export type Database = {
           parts_total?: number
           custom_items_total?: number
           grand_total?: number
+          voided_at?: string | null
+          voided_by?: string | null
+          void_reason?: string | null
+          idempotency_key?: string | null
+          serviced_by?: string | null
           created_at?: string
         }
         Update: never
@@ -162,6 +177,8 @@ export type Database = {
           status: SalaryPaymentStatus
           acknowledged_at: string | null
           note: string | null
+          /** Client-supplied key that makes a retried payment return the same row. */
+          idempotency_key: string | null
           created_by: string
           created_at: string
           updated_at: string
@@ -175,6 +192,7 @@ export type Database = {
           status?: SalaryPaymentStatus
           acknowledged_at?: string | null
           note?: string | null
+          idempotency_key?: string | null
           created_by: string
           created_at?: string
           updated_at?: string
@@ -245,6 +263,7 @@ export type Database = {
           p_items: Json
           p_customer_phone?: string | null
           p_vehicle_description?: string | null
+          p_idempotency_key?: string | null
         }
         Returns: Database['public']['Tables']['bills']['Row']
       }
@@ -254,8 +273,13 @@ export type Database = {
           p_amount: number
           p_payment_date?: string | null
           p_note?: string | null
+          p_idempotency_key?: string | null
         }
         Returns: Database['public']['Tables']['salary_payments']['Row']
+      }
+      void_bill: {
+        Args: { p_bill_id: string; p_reason?: string | null }
+        Returns: Database['public']['Tables']['bills']['Row']
       }
       accept_salary_payment: {
         Args: { p_payment_id: string }

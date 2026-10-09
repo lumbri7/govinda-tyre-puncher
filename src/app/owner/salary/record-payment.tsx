@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useRef, useState } from 'react'
 
 import { recordSalaryPayment } from '@/app/owner/actions'
 import { Field, FormMessage, Input } from '@/components/form'
@@ -65,10 +65,25 @@ function RecordPaymentForm({
 }) {
   const [state, action, pending] = useActionState(recordSalaryPayment, idleState)
   const done = state.status === 'success'
+  // One key per payment form, so a retry of a slow network write returns the
+  // payment that was already recorded instead of recording the money twice.
+  // Written at submit time so it is never re-rendered.
+  const idempotencyKeyRef = useRef<string | null>(null)
+  const idempotencyKeyFieldRef = useRef<HTMLInputElement>(null)
 
   return (
-    <form action={action} className="space-y-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-ink-200">
+    <form
+      action={action}
+      onSubmit={() => {
+        if (!idempotencyKeyRef.current) idempotencyKeyRef.current = crypto.randomUUID()
+        if (idempotencyKeyFieldRef.current) {
+          idempotencyKeyFieldRef.current.value = idempotencyKeyRef.current
+        }
+      }}
+      className="space-y-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-ink-200"
+    >
       <input type="hidden" name="employeeId" value={employeeId} />
+      <input ref={idempotencyKeyFieldRef} type="hidden" name="idempotencyKey" />
       <p className="text-sm font-semibold text-ink-900">Record payment for {employeeName}</p>
 
       <FormMessage

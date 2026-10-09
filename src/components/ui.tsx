@@ -1,5 +1,7 @@
 import type { ComponentPropsWithoutRef, ReactNode } from 'react'
 
+import { ReloadButton } from '@/components/reload-button'
+
 /** Small helper so a class list can be conditional without a dependency. */
 export function cx(...values: (string | false | null | undefined)[]): string {
   return values.filter(Boolean).join(' ')
@@ -165,9 +167,9 @@ export function Stat({
     cash: 'text-cash-700',
   }
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-ink-200/70">
+    <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-ink-200/70">
       <p className="text-xs font-semibold tracking-wide text-ink-500 uppercase">{label}</p>
-      <p className={cx('tabular mt-1 text-2xl font-bold', tones[tone])}>{value}</p>
+      <p className={cx('tabular mt-1 text-xl font-bold sm:text-2xl', tones[tone])}>{value}</p>
       {hint ? <p className="mt-0.5 text-xs text-ink-500">{hint}</p> : null}
     </div>
   )
@@ -203,9 +205,11 @@ export function EmptyState({
 export function LoadError({
   message,
   title = 'Could not load this right now',
+  retry = false,
 }: {
   message?: string | null
   title?: string
+  retry?: boolean
 }) {
   return (
     <Card className="ring-bad-200">
@@ -213,6 +217,11 @@ export function LoadError({
       <p className="mt-1 text-sm text-ink-600">
         {message ?? 'The database did not answer. Check the connection and try again.'}
       </p>
+      {retry ? (
+        <div className="mt-3 flex justify-start">
+          <ReloadButton />
+        </div>
+      ) : null}
     </Card>
   )
 }

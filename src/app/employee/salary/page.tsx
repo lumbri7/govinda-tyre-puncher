@@ -75,7 +75,7 @@ export default async function SalaryPage({
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Monthly" value={formatRupees(numericToPaise(totals?.monthly_salary))} />
         <Stat
           label="Paid"

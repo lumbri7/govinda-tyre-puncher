@@ -25,7 +25,7 @@ export default async function MyBillsPage({
   const supabase = await createClient()
   const { data: bills, count, error } = await supabase
     .from('bills')
-    .select('id, bill_number, customer_name, vehicle_number, grand_total, created_at', {
+    .select('id, bill_number, customer_name, vehicle_number, grand_total, created_at, voided_at', {
       count: 'exact',
     })
     .order('created_at', { ascending: false })
@@ -40,7 +40,7 @@ export default async function MyBillsPage({
       <PageTitle title="My bills" subtitle={`${total} bill${total === 1 ? '' : 's'} created by you`} />
 
       {error ? (
-        <LoadError title="Could not load your bills" message={error.message} />
+        <LoadError title="Could not load your bills" retry />
       ) : list.length === 0 ? (
         <EmptyState
           title="No bills yet"
@@ -68,7 +68,11 @@ export default async function MyBillsPage({
                   <p className="tabular text-sm font-bold text-ink-950">
                     {formatRupees(numericToPaise(bill.grand_total))}
                   </p>
-                  <Badge tone="brand">View</Badge>
+                  {bill.voided_at ? (
+                    <Badge tone="bad">Voided</Badge>
+                  ) : (
+                    <Badge tone="brand">View</Badge>
+                  )}
                 </div>
               </Link>
             </li>

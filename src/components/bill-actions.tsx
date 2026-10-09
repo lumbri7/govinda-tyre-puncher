@@ -1,5 +1,6 @@
 'use client'
 
+import { Capacitor } from '@capacitor/core'
 import { useState } from 'react'
 
 type BillActionsProps = {
@@ -9,6 +10,12 @@ type BillActionsProps = {
   summary: string
   /** `https://wa.me/...` with the message prefilled, or null when we have no customer number. */
   whatsappUrl: string | null
+}
+
+/** A dismissed share sheet, reported by Android and by the browser alike. */
+function shareWasCancelled(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true
+  return error instanceof Error && /cancell?ed/i.test(error.message)
 }
 
 /**
@@ -29,6 +36,26 @@ export function BillActions({ printHref, summary, whatsappUrl }: BillActionsProp
 
   async function share() {
     const url = window.location.href
+
+    // The Android WebView does not reliably expose the Web Share API, and a
+    // share button that opens nothing is worse than no button at all. While the
+    // app is running natively, hand the bill to Android's own chooser through
+    // the official Capacitor Share plugin; the browser path below is unchanged
+    // for the web version of the shop.
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Share } = await import('@capacitor/share')
+        // Android rejects with "Share canceled" when the sheet is dismissed,
+        // and resolves with the chosen target (empty if none) otherwise.
+        await Share.share({ title: 'Bill', text: summary, url, dialogTitle: 'Share bill' })
+        return
+      } catch (error) {
+        if (shareWasCancelled(error)) return
+        // Anything else (a plugin that cannot run, no supported target) falls
+        // through to the browser share and then to copying the link.
+      }
+    }
+
     const nav = navigator as Navigator & {
       canShare?: (data: ShareData) => boolean
       share?: (data: ShareData) => Promise<void>
@@ -57,11 +84,36 @@ export function BillActions({ printHref, summary, whatsappUrl }: BillActionsProp
     }
   }
 
+  /**
+   * Printing needs the browser's own machinery, and there is none inside the
+   * Android WebView: `window.print()` is a dead end there. On the phone the
+   * print page is opened in Chrome instead, where the OS print and save-as-PDF
+   * flow lives behind the browser menu.
+   */
+  async function openPrint(href: string): Promise<void> {
+    const url = new URL(href, window.location.href).toString()
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { Browser } = await import('@capacitor/browser')
+        await Browser.open({ url })
+        return
+      } catch {
+        // A browser plugin that cannot load still falls back to the app.
+      }
+    }
+    window.location.href = url
+  }
+
   return (
     <div className="no-print space-y-2">
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <a
           href={printHref}
+          onClick={(event) => {
+            if (!Capacitor.isNativePlatform()) return
+            event.preventDefault()
+            void openPrint(printHref)
+          }}
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 text-sm font-semibold text-white no-underline shadow-sm hover:bg-brand-700"
         >
           <PrintIcon />
@@ -69,6 +121,11 @@ export function BillActions({ printHref, summary, whatsappUrl }: BillActionsProp
         </a>
         <a
           href={printHref}
+          onClick={(event) => {
+            if (!Capacitor.isNativePlatform()) return
+            event.preventDefault()
+            void openPrint(printHref)
+          }}
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-ink-800 no-underline shadow-sm ring-1 ring-ink-200 hover:bg-ink-50"
         >
           <DownloadIcon />
