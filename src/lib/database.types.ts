@@ -37,6 +37,7 @@ export type Database = {
           phone: string | null
           email: string | null
           is_active: boolean
+          avatar: string | null
           /** Set when a password changes: sessions issued earlier are refused. */
           session_invalid_before: string | null
           created_at: string
@@ -50,6 +51,7 @@ export type Database = {
           phone?: string | null
           email?: string | null
           is_active?: boolean
+          avatar?: string | null
           session_invalid_before?: string | null
           created_at?: string
           updated_at?: string
@@ -59,6 +61,7 @@ export type Database = {
           phone?: string | null
           email?: string | null
           is_active?: boolean
+          avatar?: string | null
           session_invalid_before?: string | null
           updated_at?: string
         }

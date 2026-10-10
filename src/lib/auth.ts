@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { AppRole } from '@/lib/database.types'
 import { DEFAULT_TIMEZONE } from '@/lib/dates'
+import { perfLog } from '@/lib/perf'
 
 export type Session = {
   userId: string
@@ -52,8 +53,17 @@ function sessionIsStale(issuedAt: number | null, invalidBefore: string | null): 
  * session without a profile sees nothing at all.
  */
 export const getSession = cache(async (): Promise<Session | null> => {
+  // Aimed at the 8–10 s navigation report: this isolates how much of a render is
+  // the token verify, the profile lookup and the two follow-up lookups. Off
+  // unless PERF_LOG=1, and it never logs identifiers.
+  const startedAt = performance.now()
+
   const user = await getAuthUser()
-  if (!user) return null
+  if (!user) {
+    perfLog('getSession', { result: 'anonymous', total: performance.now() - startedAt })
+    return null
+  }
+  const authAt = performance.now()
 
   const supabase = await createClient()
   const { data: profile, error } = await supabase
@@ -62,27 +72,41 @@ export const getSession = cache(async (): Promise<Session | null> => {
     .eq('id', user.id)
     .maybeSingle()
 
-  if (error || !profile || !profile.is_active) return null
+  if (error || !profile || !profile.is_active) {
+    perfLog('getSession', { result: 'no-profile', total: performance.now() - startedAt })
+    return null
+  }
   // A password change ends the sessions it was supposed to end.
-  if (sessionIsStale(user.issuedAt, profile.session_invalid_before)) return null
+  if (sessionIsStale(user.issuedAt, profile.session_invalid_before)) {
+    perfLog('getSession', { result: 'stale', total: performance.now() - startedAt })
+    return null
+  }
+  const profileAt = performance.now()
 
-  const { data: business } = await supabase
-    .from('businesses')
-    .select('name, timezone')
-    .eq('id', profile.business_id)
-    .maybeSingle()
-
-  const employee =
+  // The business row and (for employees) the employee row only depend on the
+  // profile, so they run together instead of as two sequential round trips.
+  const [businessResult, employeeResult] = await Promise.all([
+    supabase.from('businesses').select('name, timezone').eq('id', profile.business_id).maybeSingle(),
     profile.role === 'employee'
-      ? (
-          await supabase
-            .from('employees')
-            .select('id')
-            .eq('user_id', profile.id)
-            .eq('is_active', true)
-            .maybeSingle()
-        ).data
-      : null
+      ? supabase
+          .from('employees')
+          .select('id')
+          .eq('user_id', profile.id)
+          .eq('is_active', true)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+  ])
+
+  const business = businessResult.data
+  const employee = employeeResult.data
+
+  perfLog('getSession', {
+    role: profile.role,
+    auth: authAt - startedAt,
+    profile: profileAt - authAt,
+    linked: performance.now() - profileAt,
+    total: performance.now() - startedAt,
+  })
 
   return {
     userId: profile.id,

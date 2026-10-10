@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 import { RealtimeRefresh } from '@/components/realtime-refresh'
+import { Avatar } from '@/components/avatar'
 import {
   Badge,
   Card,
@@ -21,6 +22,7 @@ import {
   todayISO,
 } from '@/lib/dates'
 import { formatRupees, numericToPaise } from '@/lib/money'
+import { readProfiles, type SafeProfile } from '@/lib/avatars'
 import { requireOwner } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
@@ -73,7 +75,7 @@ export default async function OwnerDashboard() {
   const yesterdayTotal = numericToPaise(yesterdaySummary.data?.[0]?.total_sales)
   const todayTotal = numericToPaise(todayTotals?.total_sales)
   const pendingCount = pending.count ?? 0
-  const creatorNames = await creatorNamesFor(
+  const creatorProfiles = await creatorProfilesFor(
     (recentBills.data ?? []).map((bill) => bill.created_by),
   )
 
@@ -158,12 +160,17 @@ export default async function OwnerDashboard() {
                   href={`/owner/bills/${bill.id}`}
                   className="flex items-center gap-3 px-3.5 py-3 no-underline"
                 >
+                  <Avatar
+                    name={creatorProfiles.get(bill.created_by)?.full_name}
+                    avatar={creatorProfiles.get(bill.created_by)?.avatar}
+                    size="sm"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="tabular truncate text-sm font-bold text-ink-950">
                       {bill.bill_number}
                     </p>
                     <p className="truncate text-xs text-ink-600">
-                      {bill.customer_name} · {creatorNames.get(bill.created_by) ?? 'Unknown'} ·{' '}
+                      {bill.customer_name} · {creatorProfiles.get(bill.created_by)?.full_name ?? 'Unknown'} ·{' '}
                       {formatTime(bill.created_at, session.timezone)}
                     </p>
                   </div>
@@ -196,12 +203,8 @@ export default async function OwnerDashboard() {
     </div>
   )
 
-  async function creatorNamesFor(ids: string[]): Promise<Map<string, string>> {
-    const unique = [...new Set(ids)].filter(Boolean)
-    if (unique.length === 0) return new Map()
-
-    const { data } = await supabase.from('profiles').select('id, full_name').in('id', unique)
-
-    return new Map((data ?? []).map((profile) => [profile.id, profile.full_name]))
+  async function creatorProfilesFor(ids: string[]): Promise<Map<string, SafeProfile>> {
+    const { profiles } = await readProfiles(supabase, ids)
+    return new Map(profiles.map((profile) => [profile.id, profile]))
   }
 }

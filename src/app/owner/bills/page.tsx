@@ -3,9 +3,11 @@ import type { Metadata } from 'next'
 
 import { DateRangeFilter } from '@/components/date-range-filter'
 import { SearchField } from '@/components/search-field'
+import { Avatar } from '@/components/avatar'
 import { Badge, Card, EmptyState, LoadError, PageTitle, ScrollTable, Stat } from '@/components/ui'
 import { defaultRange, formatDateTime, rangeToInstants } from '@/lib/dates'
 import { formatRupees, numericToPaise } from '@/lib/money'
+import { readProfiles, type SafeProfile } from '@/lib/avatars'
 import { requireOwner } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
@@ -68,13 +70,14 @@ export default async function OwnerBillsPage({
     billsQuery.or(or)
   }
 
-  const [{ data: bills, count, error }, { data: creators }] = await Promise.all([
-    billsQuery,
-    supabase.from('profiles').select('id, full_name'),
-  ])
+  const { data: bills, count, error } = await billsQuery
 
-  const names = new Map((creators ?? []).map((profile) => [profile.id, profile.full_name]))
   const list = bills ?? []
+  const { profiles: creators } = await readProfiles(
+    supabase,
+    list.map((bill) => bill.created_by),
+  )
+  const creatorById = new Map<string, SafeProfile>(creators.map((profile) => [profile.id, profile]))
   const total = count ?? 0
   const totalValue = list.reduce((sum, bill) => sum + numericToPaise(bill.grand_total), 0)
 
@@ -139,8 +142,14 @@ export default async function OwnerBillsPage({
                     </span>
                   </div>
                   <p className="mt-1 truncate font-semibold text-ink-900">{bill.customer_name}</p>
-                  <p className="tabular truncate text-sm text-ink-600">
-                    {bill.vehicle_number} · {names.get(bill.created_by) ?? 'Unknown'}
+                  <p className="tabular flex items-center gap-1.5 text-sm text-ink-600">
+                    <span className="truncate">{bill.vehicle_number} ·</span>
+                    <Avatar
+                      size="sm"
+                      name={creatorById.get(bill.created_by)?.full_name}
+                      avatar={creatorById.get(bill.created_by)?.avatar}
+                    />
+                    <span className="truncate">{creatorById.get(bill.created_by)?.full_name ?? 'Unknown'}</span>
                   </p>
                   <p className="mt-1 text-xs text-ink-500">
                     {formatDateTime(bill.created_at, session.timezone)}
@@ -177,7 +186,14 @@ export default async function OwnerBillsPage({
                       </td>
                       <td className="py-2.5 pr-3 text-ink-800">{bill.customer_name}</td>
                       <td className="py-2.5 pr-3 text-ink-600">
-                        {names.get(bill.created_by) ?? '—'}
+                        <span className="flex items-center gap-2">
+                          <Avatar
+                            size="sm"
+                            name={creatorById.get(bill.created_by)?.full_name}
+                            avatar={creatorById.get(bill.created_by)?.avatar}
+                          />
+                          {creatorById.get(bill.created_by)?.full_name ?? '—'}
+                        </span>
                       </td>
                       <td className="py-2.5 pr-3 text-xs text-ink-500">
                         {formatDateTime(bill.created_at, session.timezone)}

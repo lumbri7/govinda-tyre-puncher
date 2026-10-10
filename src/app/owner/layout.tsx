@@ -4,19 +4,14 @@ import type { ReactNode } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { IconBill, IconChart, IconHome, IconRupee, IconStaff } from '@/components/icons'
 import { NotificationBell } from '@/components/notification-bell'
+import { NotificationsUnread } from '@/components/notifications-unread'
 import { requireOwner } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { Suspense } from 'react'
 
 export const metadata: Metadata = { title: 'Owner' }
 
 export default async function OwnerLayout({ children }: { children: ReactNode }) {
   const session = await requireOwner()
-  const supabase = await createClient()
-  const { count } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('is_read', false)
-
   const nav = [
     { href: '/owner', label: 'Dashboard', icon: <IconHome />, exact: true },
     { href: '/owner/bills', label: 'Bills', icon: <IconBill /> },
@@ -31,11 +26,15 @@ export default async function OwnerLayout({ children }: { children: ReactNode })
       title="Shop owner"
       nav={nav}
       headerAction={
-        <NotificationBell
-          userId={session.userId}
-          unread={count ?? 0}
-          href="/owner/alerts"
-        />
+          <NotificationBell
+            userId={session.userId}
+            unread={0}
+            href="/owner/alerts"
+          >
+            <Suspense fallback={0}>
+              <NotificationsUnread />
+            </Suspense>
+          </NotificationBell>
       }
     >
       {children}

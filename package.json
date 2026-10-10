@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:unit": "playwright test --config tests/unit/playwright.config.ts",
     "db:test": "./tests/rls/run.sh",
     "owner:create": "node scripts/create-owner.mjs",
     "auth:migrate-employees": "node scripts/migrate-employee-auth.mjs",

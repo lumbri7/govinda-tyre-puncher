@@ -2,10 +2,12 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 import { AcceptPaymentForm } from '@/app/employee/salary/accept-payment'
+import { Avatar } from '@/components/avatar'
 import { RealtimeRefresh } from '@/components/realtime-refresh'
 import { Badge, Card, EmptyState, LoadError, PageTitle, SectionTitle, Stat } from '@/components/ui'
 import { formatDate, monthValue, todayISO } from '@/lib/dates'
 import { formatRupees, numericToPaise } from '@/lib/money'
+import { readProfiles } from '@/lib/avatars'
 import { requireEmployee } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
@@ -22,15 +24,19 @@ export default async function SalaryPage({
 
   const supabase = await createClient()
 
-  const [{ data: summary, error: summaryError }, { data: payments }] = await Promise.all([
-    supabase.rpc('my_salary_summary', { p_month: `${month}-01` }),
-    supabase
-      .from('salary_payments')
-      .select('id, amount, payment_date, status, note, acknowledged_at, created_at')
-      .order('payment_date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(60),
-  ])
+  const [{ data: summary, error: summaryError }, { data: payments }, { profiles: selfProfiles }] =
+    await Promise.all([
+      supabase.rpc('my_salary_summary', { p_month: `${month}-01` }),
+      supabase
+        .from('salary_payments')
+        .select('id, amount, payment_date, status, note, acknowledged_at, created_at')
+        .order('payment_date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(60),
+      readProfiles(supabase, [session.userId]),
+    ])
+
+  const self = selfProfiles[0] ?? null
 
   const totals = summary?.[0]
   const salaryError = summaryError
@@ -39,7 +45,12 @@ export default async function SalaryPage({
 
   return (
     <div className="space-y-5">
-      <PageTitle title="My salary" subtitle={formatDate(`${month}-01T00:00:00Z`, session.timezone)} />
+      <div className="flex items-center gap-3">
+        <Avatar name={self?.full_name} avatar={self?.avatar} size="lg" />
+        <div className="min-w-0 flex-1">
+          <PageTitle title="My salary" subtitle={formatDate(`${month}-01T00:00:00Z`, session.timezone)} />
+        </div>
+      </div>
 
       {salaryError ? (
         <LoadError title="Could not load your salary" message={salaryError.message} />

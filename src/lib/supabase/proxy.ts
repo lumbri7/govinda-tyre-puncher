@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { supabasePublishableKey, supabaseUrl } from '@/lib/env'
+import { perfLog } from '@/lib/perf'
 import type { AppRole, Database } from '@/lib/database.types'
 
 /** Routes that require a signed-in user. */
@@ -36,7 +37,9 @@ export async function updateSession(request: NextRequest) {
 
   // Must run before any redirect: getClaims() also refreshes an expired token,
   // which writes new cookies through setAll() above.
+  const startedAt = performance.now()
   const { data, error } = await supabase.auth.getClaims()
+  const claimsAt = performance.now()
   let signedIn = Boolean(data?.claims?.sub) && !error
   let role: AppRole | null = null
   /** Cookies of a session a password change has already ended. */
@@ -71,9 +74,35 @@ export async function updateSession(request: NextRequest) {
     } else if (profile?.is_active) {
       role = profile.role
     }
+  } else {
+    perfLog('proxy', { route: 'sign-in-check', signedIn: false, total: performance.now() - claimsAt })
   }
 
+  const profileAt = performance.now()
   const { pathname } = request.nextUrl
+  // A route kind, never the raw path: bill ids and similar identifiers do not
+  // belong in logs.
+  const routeKind =
+    pathname === '/'
+      ? 'root'
+      : AUTH_ROUTES.includes(pathname)
+        ? 'auth'
+        : pathname.startsWith('/owner')
+          ? 'owner'
+          : pathname.startsWith('/employee')
+            ? 'employee'
+            : 'other'
+  const finish = <T,>(result: T): T => {
+    perfLog('proxy', {
+      route: routeKind,
+      signedIn,
+      claims: claimsAt - startedAt,
+      profile: profileAt - claimsAt,
+      total: performance.now() - startedAt,
+    })
+    return result
+  }
+
   /** Redirects built here have to carry the expired cookies out with them. */
   const redirectTo = (url: URL) => {
     const target = NextResponse.redirect(url)
@@ -92,7 +121,7 @@ export async function updateSession(request: NextRequest) {
         : pathname === '/'
           ? ''
           : `?next=${encodeURIComponent(pathname)}`
-    return redirectTo(url)
+    return finish(redirectTo(url))
   }
 
   if (signedIn && pathname === '/') {
@@ -101,16 +130,16 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone()
     url.pathname = role === 'owner' ? '/owner' : role === 'employee' ? '/employee' : '/no-access'
     url.search = ''
-    return redirectTo(url)
+    return finish(redirectTo(url))
   }
 
   if (signedIn && AUTH_ROUTES.includes(pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = role === 'owner' ? '/owner' : '/employee'
     url.search = ''
-    return redirectTo(url)
+    return finish(redirectTo(url))
   }
 
   for (const name of ended) response.cookies.delete(name)
-  return response
+  return finish(response)
 }

@@ -4,9 +4,11 @@ import type { Metadata } from 'next'
 import { EditEmployeeForm } from '@/app/owner/employees/[id]/edit-employee-form'
 import { EmployeeActiveForm } from '@/app/owner/employees/[id]/employee-active-form'
 import { ResetPasswordForm } from '@/app/owner/employees/[id]/reset-password-form'
+import { Avatar } from '@/components/avatar'
 import { Badge, Card, EmptyState, PageTitle, SectionTitle } from '@/components/ui'
 import { formatDate } from '@/lib/dates'
 import { formatRupees, numericToPaise } from '@/lib/money'
+import { readProfiles } from '@/lib/avatars'
 import { requireOwner } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
@@ -34,12 +36,8 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     )
   }
 
-  const [{ data: profile }, { data: payments }, { count: billCount }] = await Promise.all([
-    supabase
-      .from('profiles')
-      .select('full_name, phone, email, is_active')
-      .eq('id', employee.user_id)
-      .maybeSingle(),
+  const [{ profiles, avatarAvailable }, { data: payments }, { count: billCount }] = await Promise.all([
+    readProfiles(supabase, [employee.user_id], 'full_name, phone'),
     supabase
       .from('salary_payments')
       .select('id, amount, payment_date, status, note')
@@ -52,17 +50,24 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
       .eq('created_by', employee.user_id),
   ])
 
+  const profile = profiles[0] ?? null
+
   return (
     <div className="space-y-5">
       <Link href="/owner/employees" className="text-sm font-semibold text-brand-700">
         &larr; Staff
       </Link>
 
-      <PageTitle
-        title={profile?.full_name ?? 'Employee'}
-        subtitle={`${formatRupees(numericToPaise(employee.monthly_salary))} per month · joined ${formatDate(employee.joined_at, session.timezone)}`}
-        action={employee.is_active ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>}
-      />
+      <div className="flex items-center gap-3">
+        <Avatar name={profile?.full_name} avatar={profile?.avatar} size="lg" />
+        <div className="min-w-0 flex-1">
+          <PageTitle
+            title={profile?.full_name ?? 'Employee'}
+            subtitle={`${formatRupees(numericToPaise(employee.monthly_salary))} per month · joined ${formatDate(employee.joined_at, session.timezone)}`}
+            action={employee.is_active ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>}
+          />
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-3">
         <Card>
@@ -76,12 +81,14 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
       </div>
 
       <EditEmployeeForm
+        avatarAvailable={avatarAvailable}
         employee={{
           id: employee.id,
           fullName: profile?.full_name ?? '',
           phone: profile?.phone ?? '',
           monthlySalary: employee.monthly_salary,
           joinedAt: employee.joined_at,
+          avatar: profile?.avatar ?? null,
         }}
       />
 

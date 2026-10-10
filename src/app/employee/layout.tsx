@@ -4,18 +4,15 @@ import type { ReactNode } from 'react'
 import { AppShell } from '@/components/app-shell'
 import { IconBill, IconHome, IconPlus, IconRupee, IconUser } from '@/components/icons'
 import { NotificationBell } from '@/components/notification-bell'
+import { NotificationsUnread } from '@/components/notifications-unread'
 import { requireEmployee } from '@/lib/auth'
-import { createClient } from '@/lib/supabase/server'
+import { Suspense } from 'react'
 
 export const metadata: Metadata = { title: 'Employee' }
 
 export default async function EmployeeLayout({ children }: { children: ReactNode }) {
   const session = await requireEmployee()
-  const supabase = await createClient()
-  const { count } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('is_read', false)
+  // unread count deferred to Suspense to avoid blocking layout rendering
 
   const nav = [
     { href: '/employee', label: 'Home', icon: <IconHome />, exact: true },
@@ -31,11 +28,11 @@ export default async function EmployeeLayout({ children }: { children: ReactNode
       title="Employee"
       nav={nav}
       headerAction={
-        <NotificationBell
-          userId={session.userId}
-          unread={count ?? 0}
-          href="/employee/alerts"
-        />
+        <NotificationBell userId={session.userId} unread={0} href="/employee/alerts">
+          <Suspense fallback={0}>
+            <NotificationsUnread />
+          </Suspense>
+        </NotificationBell>
       }
     >
       {children}

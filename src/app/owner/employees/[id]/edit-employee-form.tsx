@@ -3,15 +3,17 @@
 import { useActionState } from 'react'
 
 import { updateEmployee } from '@/app/owner/actions'
+import { AvatarPicker } from '@/components/avatar'
 import { Field, FormMessage, Input } from '@/components/form'
 import { SubmitButton } from '@/components/submit-button'
 import { Card, SectionTitle } from '@/components/ui'
 import { idleState } from '@/lib/action-state'
-import { formatPaise, numericToPaise } from '@/lib/money'
+import { formatPaise, formatRupees, numericToPaise } from '@/lib/money'
 import { todayISO } from '@/lib/dates'
 
 export function EditEmployeeForm({
   employee,
+  avatarAvailable,
 }: {
   employee: {
     id: string
@@ -19,7 +21,9 @@ export function EditEmployeeForm({
     phone: string
     monthlySalary: number
     joinedAt: string
+    avatar: string | null
   }
+  avatarAvailable: boolean
 }) {
   const [state, action] = useActionState(updateEmployee, idleState)
 
@@ -61,7 +65,7 @@ export function EditEmployeeForm({
             label="Monthly salary"
             htmlFor="edit-salary"
             error={state.errors?.monthlySalary}
-            hint={`Currently ${formatPaise(numericToPaise(employee.monthlySalary))}`}
+            hint={`Currently ${formatRupees(numericToPaise(employee.monthlySalary))}`}
           >
             <Input
               id="edit-salary"
@@ -77,6 +81,8 @@ export function EditEmployeeForm({
             <Input id="edit-joined" name="joinedAt" type="date" defaultValue={employee.joinedAt} max={todayISO()} required />
           </Field>
         </div>
+
+        {avatarAvailable ? <AvatarPicker name="avatar" value={employee.avatar ?? ''} /> : null}
 
         <SubmitButton pendingLabel="Saving...">Save changes</SubmitButton>
       </form>

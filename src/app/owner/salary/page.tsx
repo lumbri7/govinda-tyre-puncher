@@ -3,10 +3,12 @@ import type { Metadata } from 'next'
 
 import { CancelPaymentForm } from '@/app/owner/salary/cancel-payment'
 import { RecordPaymentButton } from '@/app/owner/salary/record-payment'
+import { Avatar } from '@/components/avatar'
 import { RealtimeRefresh } from '@/components/realtime-refresh'
 import { Badge, Card, EmptyState, LoadError, PageTitle, SectionTitle } from '@/components/ui'
 import { addMonths, formatDate, monthValue, startOfMonthISO, todayISO } from '@/lib/dates'
 import { formatRupees, numericToPaise } from '@/lib/money'
+import { readProfiles } from '@/lib/avatars'
 import { requireOwner } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
@@ -52,21 +54,18 @@ export default async function OwnerSalaryPage({
     .from('employees')
     .select('id, user_id, monthly_salary, is_active')
     .in('id', employeeIds.length > 0 ? employeeIds : ['00000000-0000-0000-0000-000000000000'])
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name')
-    .in(
-      'id',
-      (employees ?? []).length > 0
-        ? (employees ?? []).map((employee) => employee.user_id)
-        : ['00000000-0000-0000-0000-000000000000'],
-    )
+  const { profiles } = await readProfiles(
+    supabase,
+    (employees ?? []).map((employee) => employee.user_id),
+    'full_name',
+  )
 
-  const nameOf = new Map((profiles ?? []).map((profile) => [profile.id, profile.full_name]))
-  const nameForEmployee = (employeeId: string) => {
+  const profileById = new Map(profiles.map((profile) => [profile.id, profile]))
+  const profileForEmployee = (employeeId: string) => {
     const employee = (employees ?? []).find((row) => row.id === employeeId)
-    return employee ? (nameOf.get(employee.user_id) ?? 'Unknown') : 'Unknown'
+    return employee ? (profileById.get(employee.user_id) ?? null) : null
   }
+  const nameForEmployee = (employeeId: string) => profileForEmployee(employeeId)?.full_name ?? 'Unknown'
 
   const totalSalary = rows.reduce((sum, row) => sum + numericToPaise(row.monthly_salary), 0)
   const totalPaid = rows.reduce((sum, row) => sum + numericToPaise(row.paid), 0)
@@ -136,6 +135,11 @@ export default async function OwnerSalaryPage({
               <li key={row.employee_id}>
                 <Card className="space-y-3">
                   <div className="flex items-start gap-3">
+                    <Avatar
+                      name={row.full_name}
+                      avatar={profileForEmployee(row.employee_id)?.avatar}
+                      size="md"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-2 text-sm font-bold text-ink-950">
                         <span className="truncate">{row.full_name}</span>
@@ -188,6 +192,11 @@ export default async function OwnerSalaryPage({
             {(pendingPayments ?? []).map((payment) => (
               <li key={payment.id}>
                 <Card className="flex items-center gap-3">
+                  <Avatar
+                    name={nameForEmployee(payment.employee_id)}
+                    avatar={profileForEmployee(payment.employee_id)?.avatar}
+                    size="sm"
+                  />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-ink-950">
                       {nameForEmployee(payment.employee_id)}
@@ -214,6 +223,11 @@ export default async function OwnerSalaryPage({
             {(recent ?? []).map((payment) => (
               <li key={payment.id} className="flex items-center gap-3 px-3.5 py-2.5 text-sm">
                 <span className="tabular w-24 shrink-0 text-ink-500">{payment.payment_date}</span>
+                <Avatar
+                  name={nameForEmployee(payment.employee_id)}
+                  avatar={profileForEmployee(payment.employee_id)?.avatar}
+                  size="sm"
+                />
                 <span className="min-w-0 flex-1 truncate text-ink-800">
                   {nameForEmployee(payment.employee_id)}
                 </span>

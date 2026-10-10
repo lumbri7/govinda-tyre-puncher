@@ -169,7 +169,17 @@ export function Stat({
   return (
     <div className="min-w-0 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-ink-200/70">
       <p className="text-xs font-semibold tracking-wide text-ink-500 uppercase">{label}</p>
-      <p className={cx('tabular mt-1 text-xl font-bold sm:text-2xl', tones[tone])}>{value}</p>
+      {/* Fluid size keeps a full lakh value inside its half-width card on a
+          320px screen, and `overflow-wrap:anywhere` is the safety net for
+          values too wide for the column even then. */}
+      <p
+        className={cx(
+          'tabular mt-1 text-[clamp(1.125rem,5vw,1.5rem)] font-bold [overflow-wrap:anywhere] sm:text-2xl',
+          tones[tone],
+        )}
+      >
+        {value}
+      </p>
       {hint ? <p className="mt-0.5 text-xs text-ink-500">{hint}</p> : null}
     </div>
   )

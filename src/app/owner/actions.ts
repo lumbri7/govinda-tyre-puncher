@@ -12,6 +12,7 @@ import {
   updatePasswordSchema,
 } from '@/lib/validation'
 import { newInternalEmployeeEmail } from '@/lib/employee-identity'
+import { isAvatarKey, updateProfileAvatar } from '@/lib/avatars'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -135,6 +136,17 @@ export async function updateEmployee(
   })
 
   if (error) return actionError(humanizeDatabaseError(error.message))
+
+  const avatar = text(formData, 'avatar')
+  const avatarValue = isAvatarKey(avatar) ? avatar : null
+  const { data: employeeRow } = await supabase
+    .from('employees')
+    .select('user_id')
+    .eq('id', employeeId)
+    .maybeSingle()
+  if (employeeRow && !(await updateProfileAvatar(supabase, employeeRow.user_id, avatarValue))) {
+    return actionError('Details saved, but the avatar could not be saved.')
+  }
 
   // Nothing to do in Supabase Auth: the login is an internal address that has
   // nothing to do with the number, so correcting the number here is enough for

@@ -2,9 +2,11 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 import { AddEmployeeForm } from '@/app/owner/employees/add-employee-form'
+import { Avatar } from '@/components/avatar'
 import { Badge, Card, EmptyState, LoadError, PageTitle, SectionTitle } from '@/components/ui'
 import { formatDate, todayISO } from '@/lib/dates'
 import { formatRupees, numericToPaise } from '@/lib/money'
+import { readProfiles } from '@/lib/avatars'
 import { requireOwner } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 
@@ -39,12 +41,9 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
   const pendingTotal = pendingByEmployee.size
 
   const userIds = list.map((employee) => employee.user_id)
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, phone')
-    .in('id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000'])
+  const { profiles } = await readProfiles(supabase, userIds, 'full_name, phone')
 
-  const byId = new Map((profiles ?? []).map((profile) => [profile.id, profile]))
+  const byId = new Map(profiles.map((profile) => [profile.id, profile]))
   const activeCount = list.filter((employee) => employee.is_active).length
 
   return (
@@ -84,6 +83,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
                     href={`/owner/employees/${employee.id}`}
                     className="flex items-center gap-3 rounded-2xl bg-white p-3.5 no-underline shadow-sm ring-1 ring-ink-200/70"
                   >
+                    <Avatar name={profile?.full_name} avatar={profile?.avatar} size="md" />
                     <div className="min-w-0 flex-1">
                       <p className="flex items-center gap-2 text-sm font-bold text-ink-950">
                         <span className="truncate">{profile?.full_name ?? 'Unknown'}</span>
